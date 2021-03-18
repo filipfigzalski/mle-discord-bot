@@ -4,3 +4,4 @@ ids.csv
 names.csv
 surnames.csv
 *.log
+.vscode/
