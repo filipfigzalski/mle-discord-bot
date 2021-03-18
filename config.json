@@ -1,0 +1,24 @@
+{
+    "token":"ODE5OTU5NDY3MTAwODY0NTEz.YEuMww.6Oq7LQ7YdOZQMpXyJlyDcR0f5GY",
+    "id": {
+        "guild": 789972608539426846,
+        "channels": {
+            "verification": 820136362656399392,
+            "select_role": 821910624522862602,
+            "regulamin": 790195491799171102
+        },
+        "roles": {
+            "verified": 789992127769477121,
+            "lol": 789997180529934338,
+            "csgo": 789992125416734720
+        },
+        "messages": {
+            "select_role": 821910650011779072,
+            "regulamin": 798296947894517811
+        },
+        "emojis": {
+            "lol": 820123567093579796,
+            "cs": 820133907701039135
+        }
+    }
+}
