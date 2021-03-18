@@ -28,3 +28,4 @@ async def on_ready():
 
 client.run(config['token'])
 
+#test
