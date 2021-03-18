@@ -27,5 +27,3 @@ async def on_ready():
     print('done')
 
 client.run(config['token'])
-
-#test
