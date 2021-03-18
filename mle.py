@@ -59,7 +59,6 @@ with open('config.json') as file:
 async def load_config():
     # importing globals
     global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
-    config = json.load(file)
 
     # guild
     guild = client.get_guild(config['id']['guild'])
