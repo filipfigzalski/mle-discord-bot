@@ -10,10 +10,13 @@ intents.members = True
 
 client = Bot(command_prefix= '-', intents=intents)
 
+with open('config.json', 'r') as file:
+    config = file.json()
+
 @client.event
 async def on_ready():
-    guild : Guild = client.get_guild(789972608539426846)
-    role : Role = guild.get_role(789992127769477121)
+    guild : Guild = client.get_guild(config['id']['guild'])
+    role : Role = guild.get_role(config['id']['role']['verified'])
     ids = []
     members : List[Member] = guild.members
     for member in members:
@@ -23,5 +26,5 @@ async def on_ready():
         file.writelines(ids)
     print('done')
 
-client.run('ODE5OTU5NDY3MTAwODY0NTEz.YEuMww.6Oq7LQ7YdOZQMpXyJlyDcR0f5GY')
+client.run(config['token'])
 
