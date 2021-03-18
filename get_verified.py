@@ -1,5 +1,7 @@
 from typing import List
 
+import json
+
 import discord
 from discord import *
 from discord.ext.commands import Bot
@@ -11,7 +13,7 @@ intents.members = True
 client = Bot(command_prefix= '-', intents=intents)
 
 with open('config.json', 'r') as file:
-    config = file.json()
+    config = json.load(file)
 
 @client.event
 async def on_ready():

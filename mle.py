@@ -34,35 +34,6 @@ cs_emoji : Emoji
 
 TOKEN = 'ODE5OTU5NDY3MTAwODY0NTEz.YEuMww.6Oq7LQ7YdOZQMpXyJlyDcR0f5GY'
 
-# loading configs
-async def load_config():
-    with open('config.json') as file:
-        # importing globals
-        global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
-        config = json.load(file)
-
-        # guild
-        guild = client.get_guild(config['id']['guild'])
-
-        # channels
-        verification_channel = client.get_channel(config['id']['channels']['verification'])
-        select_role_channel = client.get_channel(config['id']['channels']['select_role'])
-        regulamin_channel = client.get_channel(config['id']['channels']['regulamin'])
-
-        # roles
-        verified_role  = get(guild.roles, id=config['id']['roles']['verified'])
-        lol_role  = get(guild.roles, id=config['id']['roles']['lol'])
-        csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
-
-        # messages
-        regulamin_message  = await regulamin_channel.fetch_message(config['id']['messages']['regulamin'])
-        select_role_message  = await select_role_channel.fetch_message(config['id']['messages']['select_role'])
-
-        # emotes
-        lol_emoji = await guild.fetch_emoji(config['id']['emojis']['lol'])
-        cs_emoji = await guild.fetch_emoji(config['id']['emojis']['cs'])
-
-
 # loading names and surnames to dictionary
 with open('names.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
@@ -77,7 +48,39 @@ with open('ids.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines() 
     ids = {lst[i][:-1]: 1 for i in range(0, len(lst))}
 
+# loading config
+with open('config.json') as file:
+    config = json.load(file)
+
+async def load_config():
+    # importing globals
+    global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
+    config = json.load(file)
+
+    # guild
+    guild = client.get_guild(config['id']['guild'])
+
+    # channels
+    verification_channel = client.get_channel(config['id']['channels']['verification'])
+    select_role_channel = client.get_channel(config['id']['channels']['select_role'])
+    regulamin_channel = client.get_channel(config['id']['channels']['regulamin'])
+
+    # roles
+    verified_role  = get(guild.roles, id=config['id']['roles']['verified'])
+    lol_role  = get(guild.roles, id=config['id']['roles']['lol'])
+    csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
+
+    # messages
+    regulamin_message  = await regulamin_channel.fetch_message(config['id']['messages']['regulamin'])
+    select_role_message  = await select_role_channel.fetch_message(config['id']['messages']['select_role'])
+
+    # emotes
+    lol_emoji = await guild.fetch_emoji(config['id']['emojis']['lol'])
+    cs_emoji = await guild.fetch_emoji(config['id']['emojis']['cs'])
+
+
 async def write_ids():
+    # saves ids to file
     with open('ids.csv', 'w') as file:
         lines = []
         for line in list(ids.keys()):
