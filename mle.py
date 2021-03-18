@@ -32,8 +32,6 @@ select_role_message : Message
 lol_emoji : Emoji
 cs_emoji : Emoji
 
-TOKEN = 'ODE5OTU5NDY3MTAwODY0NTEz.YEuMww.6Oq7LQ7YdOZQMpXyJlyDcR0f5GY'
-
 # loading names and surnames to dictionary
 with open('names.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
@@ -241,4 +239,4 @@ async def on_member_remove(member : Member):
     await write_ids()
 
 
-client.run(TOKEN)
+client.run(config['token'])
