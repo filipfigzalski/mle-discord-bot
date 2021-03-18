@@ -32,23 +32,29 @@ select_role_message : Message
 lol_emoji : Emoji
 cs_emoji : Emoji
 
+print('Starting up bot.')
+
 # loading names and surnames to dictionary
 with open('names.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
     names = {lst[i][:-1]: 1 for i in range(0, len(lst))}
+    print('Names loaded.')
 
 with open('surnames.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
     surnames = {lst[i][:-1]: 1 for i in range(0, len(lst))}
+    print('Surnames loaded.')
 
 # loading verified ids to dictionary
 with open('ids.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines() 
     ids = {lst[i][:-1]: 1 for i in range(0, len(lst))}
+    print('Loaded verified ids.')
 
 # loading config
 with open('config.json') as file:
     config = json.load(file)
+    print('Loaded config.')
 
 async def load_config():
     # importing globals
@@ -85,6 +91,7 @@ async def write_ids():
             line += '\n'
             lines.append(line)
         file.writelines(lines)
+        print('Ids written succesfully.')
 
 async def verify(member : Member):
     await member.send('Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
@@ -166,7 +173,6 @@ async def on_ready():
 
 @client.event
 async def on_raw_reaction_add(payload : RawReactionActionEvent):
-
     # reactions on verification channel
     if payload.channel_id == verification_channel.id and payload.user_id != client.user.id and str(payload.emoji) in ['🚫', '✅', '❌']:
         # fetching message
@@ -201,21 +207,25 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
         await regulamin_message.remove_reaction(payload.emoji, member)
         
         if str(payload.emoji) == '✅' and not str(payload.user_id) in ids :
+            print(member.display_name + ' started verification process.')
+
             # add id to list of ids
             ids[str(member.id)] = 1
             await write_ids()
             # begin verification process
             await verify(member)
+            print(member.display_name + ' ended verification process.')
 
 
     elif payload.message_id == select_role_message.id:
-        print(str(payload.emoji))
         member : Member = guild.get_member(payload.user_id)
         if payload.emoji in [cs_emoji, lol_emoji]:
             if payload.emoji == cs_emoji:
                 await member.add_roles(csgo_role)
+                print(member.display_name + ' selected cs_go role.')
             elif payload.emoji == lol_emoji:
                 await member.add_roles(lol_role)
+                print(member.display_name + ' selected lol role.')
 
         else:
             # remove spam reactions
@@ -229,12 +239,15 @@ async def on_raw_reaction_remove(payload : RawReactionActionEvent):
             if payload.emoji in [cs_emoji, lol_emoji]:
                 if payload.emoji == cs_emoji:
                     await member.remove_roles(csgo_role)
+                    print(member.display_name + ' removed cs_go role.')
                 elif payload.emoji == lol_emoji:
                     await member.remove_roles(lol_role)
+                    print(member.display_name + ' removed lol role.')
 
 
 @client.event
 async def on_member_remove(member : Member):
+    print(member.display_name + ' left server.')
     ids.pop(str(member.id))
     await write_ids()
 
