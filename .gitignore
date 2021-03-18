@@ -3,3 +3,4 @@ config.json
 ids.csv
 names.csv
 surnames.csv
+*.log
