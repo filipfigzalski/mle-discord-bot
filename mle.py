@@ -6,32 +6,6 @@ from discord.ext.commands import Bot
 from discord.utils import get
 
 
-# defining bot intents
-intents = Intents.default()
-intents.members = True
-
-
-# creating bot
-client = Bot(command_prefix= '-', intents=intents)
-
-
-# declarign global variables
-guild : Guild
-
-verification_channel : TextChannel
-select_role_channel : TextChannel
-regulamin_channel : TextChannel
-
-verified_role : Role
-lol_role : Role
-csgo_role : Role
-
-regulamin_message : Message
-select_role_message : Message
-
-lol_emoji : Emoji
-cs_emoji : Emoji
-
 print('Starting up bot.')
 
 # loading names and surnames to dictionary
@@ -56,9 +30,37 @@ with open('config.json') as file:
     config = json.load(file)
     print('Loaded config.')
 
+
+# defining bot intents
+intents = Intents.default()
+intents.members = True
+
+
+# creating bot
+client = Bot(command_prefix= config['prefix'], intents=intents)
+
+
+# declarign global variables
+guild : Guild
+
+verification_channel : TextChannel
+select_role_channel : TextChannel
+regulamin_channel : TextChannel
+
+verified_role : Role
+lol_role : Role
+csgo_role : Role
+
+regulamin_message : Message
+select_role_message : Message
+
+lol_emoji : Emoji
+cs_emoji : Emoji
+
 async def load_config():
     # importing globals
     global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
+    config = json.load(file)
 
     # guild
     guild = client.get_guild(config['id']['guild'])
