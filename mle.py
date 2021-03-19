@@ -2,7 +2,7 @@ import json
 
 import discord
 from discord import *
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot, Context
 from discord.utils import get
 
 
@@ -253,3 +253,11 @@ async def on_member_remove(member : Member):
 
 
 client.run(config['token'])
+
+@client.command
+async def verify(ctx : Context, args):
+    if Context.author.guild_permissions.manage_roles:
+        # member : Member = guild.get_member()
+        print(args)
+    else:
+        await ctx.send('You don\'t have permission to do this!')
