@@ -93,7 +93,7 @@ async def write_ids():
         file.writelines(lines)
         print('Ids written succesfully.')
 
-async def verify(member : Member):
+async def _verify(member : Member):
     await member.send('Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
 
     def check_message(m : Message):
@@ -154,7 +154,7 @@ async def verify(member : Member):
             
     elif str(reaction.emoji) == '👎':
         # restart verification process
-        await verify(member)
+        await _verify(member)
 
 
 @client.event
@@ -179,7 +179,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
         message : Message = await verification_channel.fetch_message(payload.message_id)
         
         # extracting member id from reacted message
-        member_id = int(message.content.split(' ', 1)[0][2:-1])
+        member_id =  int(''.join(c for c in message.content.split(' ', 1)[0] if c.isdigit()))
         member : Member = guild.get_member(member_id)
         
         if str(payload.emoji) == '🚫':
@@ -198,7 +198,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
             await member.send('Weryfikacja przyjęta!\nWitamy na **MLEsports**!')
         elif str(payload.emoji) == '❌':
             await member.send('Weryfikacja nie przebiegła pomyślnie, spróbuj ponownie')
-            await verify(member)
+            await _verify(member)
 
     elif payload.message_id == regulamin_message.id:
         member : Member = guild.get_member(payload.user_id)
@@ -213,7 +213,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
             ids[str(member.id)] = 1
             await write_ids()
             # begin verification process
-            await verify(member)
+            await _verify(member)
             print(member.display_name + ' ended verification process.')
 
 
@@ -251,13 +251,15 @@ async def on_member_remove(member : Member):
     ids.pop(str(member.id))
     await write_ids()
 
+@client.command()
+async def verify(ctx : Context, arg):
+    author = await guild.fetch_member(ctx.author.id)
+    if author.guild_permissions.manage_roles:
+        member_id = arg[3:-1]
+        member : Member = await guild.fetch_member(member_id)
+        await _verify(member)
+    else:
+        await ctx.send('You don\'t have permission to do this!')
 
 client.run(config['token'])
 
-@client.command
-async def verify(ctx : Context, args):
-    if Context.author.guild_permissions.manage_roles:
-        # member : Member = guild.get_member()
-        print(args)
-    else:
-        await ctx.send('You don\'t have permission to do this!')
