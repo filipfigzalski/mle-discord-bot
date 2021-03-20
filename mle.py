@@ -1,3 +1,5 @@
+import asyncio
+
 import json
 
 import discord
@@ -93,39 +95,32 @@ async def write_ids():
         file.writelines(lines)
         print('Ids written succesfully.')
 
-async def _verify(member : Member):
-    await member.send('Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
-
-    def check_message(m : Message):
-        # checks if message has the same author and was sent in dms
-        return m.author == member and isinstance(m.channel, DMChannel)
-    
-    # asking few simple questions
-    message = await client.wait_for('message', check=check_message)
-    name = message.content
-
-    await member.send('Podaj swoje nazwisko:')
-    message = await client.wait_for('message', check=check_message)
-    surname = message.content
-
-    await member.send('W jakim mieście chodzisz do szkoły:')
-    message = await client.wait_for('message', check=check_message)
-    city = message.content
-
-    await member.send('Jak nazywa się twoja szkoła średnia:')
-    message = await client.wait_for('message', check=check_message)
-    school = message.content
+async def _verify(member : Member) -> bool:
+    print(member.display_name + ' started verification process.')
+    try:
+        name = await send_question(member, 'Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
+        surname = await send_question(member, 'Podaj swoje nazwisko:')
+        city = await send_question(member, 'W jakim mieście chodzisz do szkoły:')
+        school = await send_question(member, 'Do jakiej szkoły chodzisz:')
+    except Exception:
+        print(member.display_name + ' left during verification.')
+        return False
 
     message = await member.send('Czy dane się zgadzają?\n - Imię: ' + name + '\n - Nazwisko: ' + surname + '\n - Miasto: ' + city + '\n - Szkoła średnia: ' + school)
     await message.add_reaction('👍')
     await message.add_reaction('👎')
+    while True:
+        try:
+            def check_reaction(r : Reaction, u : User):
+                # check if reaction has the same author and was sent in dms
+                return u == member and str(r.emoji) in ['👍', '👎'] and isinstance(r.message.channel, DMChannel)
 
-    def check_reaction(r : Reaction, u : User):
-        # check if reaction has the same author and was sent in dms
-        return u == member and str(r.emoji) in ['👍', '👎'] and isinstance(r.message.channel, DMChannel)
-
-    # waiting for matching reaction
-    reaction, user = await client.wait_for('reaction_add', check=check_reaction)
+            # waiting for matching reaction
+            reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=5)
+            break
+        except asyncio.exceptions.TimeoutError:
+            print(member.display_name + ' left during verification.')
+            return False
 
     if str(reaction.emoji) == '👍':
         # sending message to mods channel
@@ -150,12 +145,34 @@ async def _verify(member : Member):
 
             # sending dm
             await member.send('Hmm...\nDane które podałeś są podejrzane dla naszego bota.\nPoczekaj proszę na weryfikację przez naszych modów.')
-
             
     elif str(reaction.emoji) == '👎':
         # restart verification process
         await _verify(member)
+    
+    print(member.display_name + ' ended verification.')
+    return True
 
+async def send_question(member : Member, question : str) -> str:
+    # sending message
+    await member.send(question)
+    def check(message : Message):
+        # checking if message has the same author and was sent in DMs
+        return message.author == member and isinstance(message.channel, DMChannel)
+    while True:
+        try:
+            # wait for reply
+            msg = await client.wait_for('message', check=check, timeout=1)
+            # return content of reply
+            return msg.content
+        except asyncio.exceptions.TimeoutError:
+            # check if member left server
+            if member not in guild.members:
+                raise Exception
+
+
+def extract_id(id : str) -> int:
+    return int(''.join(c for c in id if c.isdigit()))
 
 @client.event
 async def on_ready():
@@ -179,7 +196,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
         message : Message = await verification_channel.fetch_message(payload.message_id)
         
         # extracting member id from reacted message
-        member_id =  int(''.join(c for c in message.content.split(' ', 1)[0] if c.isdigit()))
+        member_id = extract_id(message.content.split(' ', 1)[0])
         member : Member = guild.get_member(member_id)
         
         if str(payload.emoji) == '🚫':
@@ -206,27 +223,28 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
         # remove reactions
         await regulamin_message.remove_reaction(payload.emoji, member)
         
+        # check if reaction is valid and if user didnt start verification earlier
         if str(payload.emoji) == '✅' and not str(payload.user_id) in ids :
-            print(member.display_name + ' started verification process.')
-
             # add id to list of ids
             ids[str(member.id)] = 1
             await write_ids()
             # begin verification process
-            await _verify(member)
-            print(member.display_name + ' ended verification process.')
+            if await _verify(member):
+                print(member.display_name + ' ended verification process.')
 
-
+    # check if reaction is on specified message
     elif payload.message_id == select_role_message.id:
         member : Member = guild.get_member(payload.user_id)
+        # check if emoji is valid
         if payload.emoji in [cs_emoji, lol_emoji]:
             if payload.emoji == cs_emoji:
+                # add role
                 await member.add_roles(csgo_role)
                 print(member.display_name + ' selected cs_go role.')
             elif payload.emoji == lol_emoji:
+                # add role
                 await member.add_roles(lol_role)
                 print(member.display_name + ' selected lol role.')
-
         else:
             # remove spam reactions
             await select_role_message.remove_reaction(payload.emoji, member)
@@ -234,13 +252,17 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
 
 @client.event
 async def on_raw_reaction_remove(payload : RawReactionActionEvent):
+    # check if reaction was removed on select role message
     if payload.message_id == select_role_message.id:
             member : Member = guild.get_member(payload.user_id)
+            # check if emoji is valid
             if payload.emoji in [cs_emoji, lol_emoji]:
                 if payload.emoji == cs_emoji:
+                    # add selected role
                     await member.remove_roles(csgo_role)
                     print(member.display_name + ' removed cs_go role.')
                 elif payload.emoji == lol_emoji:
+                    # add selected role
                     await member.remove_roles(lol_role)
                     print(member.display_name + ' removed lol role.')
 
@@ -248,14 +270,16 @@ async def on_raw_reaction_remove(payload : RawReactionActionEvent):
 @client.event
 async def on_member_remove(member : Member):
     print(member.display_name + ' left server.')
+    # update ids
     ids.pop(str(member.id))
     await write_ids()
 
 @client.command()
-async def verify(ctx : Context, arg):
+async def verify(ctx : Context, mention):
     author = await guild.fetch_member(ctx.author.id)
+    # check if author has permissions
     if author.guild_permissions.manage_roles:
-        member_id = arg[3:-1]
+        member_id = extract_id(mention)
         member : Member = await guild.fetch_member(member_id)
         await _verify(member)
     else:
