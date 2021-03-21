@@ -58,6 +58,9 @@ select_role_message : Message
 lol_emoji : Emoji
 cs_emoji : Emoji
 
+class MemberLeft(Exception):
+    pass
+
 async def load_config():
     # importing globals
     global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
@@ -101,7 +104,7 @@ async def _verify(member : Member) -> bool:
         surname = await send_question(member, 'Podaj swoje nazwisko:')
         city = await send_question(member, 'W jakim mieście chodzisz do szkoły:')
         school = await send_question(member, 'Do jakiej szkoły chodzisz:')
-    except Exception:
+    except MemberLeft:
         print(member.display_name + ' left during verification.')
         return False
 
@@ -117,8 +120,8 @@ async def _verify(member : Member) -> bool:
             # waiting for matching reaction
             reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=1)
             break
-        except asyncio.exceptions.TimeoutError:
-            if str(member.id) not in ids:
+        except asyncio.TimeoutError:
+            if not str(member.id) in ids:
                 print(member.display_name + ' left during verification.')
                 return False
 
@@ -165,10 +168,10 @@ async def send_question(member : Member, question : str) -> str:
             msg = await client.wait_for('message', check=check, timeout=1)
             # return content of reply
             return msg.content
-        except asyncio.exceptions.TimeoutError:
+        except asyncio.TimeoutError:
             # check if member left server
-            if str(member.id) not in ids:
-                raise Exception
+            if not str(member.id) in ids:
+                raise MemberLeft
 
 
 def extract_id(id : str) -> int:
