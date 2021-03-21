@@ -118,7 +118,7 @@ async def _verify(member : Member) -> bool:
             reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=1)
             break
         except asyncio.exceptions.TimeoutError:
-            if guild.get_member(member.id) is None:
+            if str(member.id) not in ids:
                 print(member.display_name + ' left during verification.')
                 return False
 
@@ -167,7 +167,7 @@ async def send_question(member : Member, question : str) -> str:
             return msg.content
         except asyncio.exceptions.TimeoutError:
             # check if member left server
-            if guild.get_member(member.id) is None:
+            if str(member.id) not in ids:
                 raise Exception
 
 
