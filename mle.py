@@ -34,8 +34,7 @@ with open('config.json') as file:
 
 
 # defining bot intents
-intents = Intents.default()
-intents.members = True
+intents = Intents.all()
 
 
 # creating bot
@@ -116,11 +115,12 @@ async def _verify(member : Member) -> bool:
                 return u == member and str(r.emoji) in ['👍', '👎'] and isinstance(r.message.channel, DMChannel)
 
             # waiting for matching reaction
-            reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=5)
+            reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=1)
             break
         except asyncio.exceptions.TimeoutError:
-            print(member.display_name + ' left during verification.')
-            return False
+            if guild.get_member(member.id) is None:
+                print(member.display_name + ' left during verification.')
+                return False
 
     if str(reaction.emoji) == '👍':
         # sending message to mods channel
@@ -167,7 +167,7 @@ async def send_question(member : Member, question : str) -> str:
             return msg.content
         except asyncio.exceptions.TimeoutError:
             # check if member left server
-            if member not in guild.members:
+            if guild.get_member(member.id) is None:
                 raise Exception
 
 
