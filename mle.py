@@ -4,7 +4,7 @@ import json
 
 import discord
 from discord import *
-from discord.ext.commands import Bot, Context
+from discord.ext.commands import Bot, Context, context
 from discord.utils import get
 
 
@@ -288,5 +288,20 @@ async def verify(ctx : Context, mention):
     else:
         await ctx.send('You don\'t have permission to do this!')
 
-client.run(config['token'])
+@client.command()
+async def say(ctx : Context, arg : str):
+    author : Member = guild.get_member(ctx.author.id)
+    if author.guild_permissions.manage_roles:
+        await ctx.message.add_reaction('👂')
+        channel : TextChannel = guild.get_channel(extract_id(arg))
 
+        def check(message : Message):
+            return message.author == ctx.author and message.channel == ctx.channel
+
+        message : Message = await client.wait_for('message', check=check)
+        await channel.send(message.content)
+        await message.add_reaction('👌')
+    else:
+        await ctx.send('You don\'t have permission to do this!')
+
+client.run(config['token'])
