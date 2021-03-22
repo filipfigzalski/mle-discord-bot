@@ -6,6 +6,11 @@ from discord import *
 from discord.ext.commands import Bot, Context, context
 from discord.utils import get
 
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
+
 
 # loading names and surnames to dictionary
 logging.debug('Loading names.')
@@ -79,12 +84,12 @@ async def load_config():
     csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
 
     # messages
-    regulamin_message  = await regulamin_channel.get_message(config['id']['messages']['regulamin'])
-    select_role_message  = await select_role_channel.get_message(config['id']['messages']['select_role'])
+    regulamin_message  = await regulamin_channel.fetch_message(config['id']['messages']['regulamin'])
+    select_role_message  = await select_role_channel.fetch_message(config['id']['messages']['select_role'])
 
     # emotes
-    lol_emoji = await guild.get_emoji(config['id']['emojis']['lol'])
-    cs_emoji = await guild.get_emoji(config['id']['emojis']['cs'])
+    lol_emoji = await guild.fetch_emoji(config['id']['emojis']['lol'])
+    cs_emoji = await guild.fetch_emoji(config['id']['emojis']['cs'])
 
 
 async def write_ids():
@@ -151,6 +156,7 @@ async def _verify(member : Member) -> bool:
 
             # sending dm
             await member.send('Hmm...\nDane które podałeś są podejrzane dla naszego bota.\nPoczekaj proszę na weryfikację przez naszych modów.')
+            logging.info(member.display_name + ' gave incorrect data.')
             return False
 
     elif str(reaction.emoji) == '👎':
@@ -197,7 +203,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
     # reactions on verification channel
     if payload.channel_id == verification_channel.id and payload.user_id != client.user.id and str(payload.emoji) in ['🚫', '✅', '❌']:
         # loading message
-        message : Message = await verification_channel.get_message(payload.message_id)
+        message : Message = await verification_channel.fetch_message(payload.message_id)
         
         # extracting member id from reacted message
         member_id = extract_id(message.content.split(' ', 1)[0])
@@ -212,7 +218,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
         elif str(payload.emoji) == '✅':
             await member.add_roles(verified_role)
             
-            logging.info('Verification accepted ' + member.display_name)
+            logging.info('Verification accepted for ' + member.display_name)
             # sending notification to mods with reaction
             content = member.mention + ' został zweryfikowany!'
             notification : Message = await verification_channel.send(content)
@@ -220,7 +226,8 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
 
             await member.send('Weryfikacja przyjęta!\nWitamy na **MLEsports**!')
         elif str(payload.emoji) == '❌':
-            await member.send('Weryfikacja nie przebiegła pomyślnie, spróbuj ponownie')
+            logging.info('Rejected verification for ' + member.display_name)
+            await member.send('Weryfikacja nie przebiegła pomyślnie, spróbuj ponownie.')
             await _verify(member)
 
     elif payload.message_id == regulamin_message.id:
@@ -280,12 +287,13 @@ async def on_member_remove(member : Member):
     await write_ids()
 
 @client.command()
-async def verify(ctx : Context, mention):
-    author = await guild.get_member(ctx.author.id)
+async def verify(ctx : Context, *args):
     # check if author has permissions
-    if author.guild_permissions.manage_roles:
-        member_id = extract_id(mention)
-        member : Member = await guild.fet_member(member_id)
+    if ctx.author.guild_permissions.manage_roles:
+        if (len(args) != 1):
+            await ctx.send('Ta komenda wymaga jednego argumentu.')
+            return
+        member : Member = guild.get_member(extract_id(args[0]))
         await _verify(member)
         logging.info(ctx.author.display_name + ' stared verification process for ' + member.display_name)
     else:
@@ -293,11 +301,13 @@ async def verify(ctx : Context, mention):
         logging.info(ctx.author.display_name + ' tried to use verify command without permission.')
 
 @client.command()
-async def say(ctx : Context, arg : str):
-    author : Member = guild.get_member(ctx.author.id)
-    if author.guild_permissions.manage_roles:
-        await ctx.send('Co mam napisać:.')
-        channel : TextChannel = guild.get_channel(extract_id(arg))
+async def say(ctx : Context, *args : str):
+    if ctx.author.guild_permissions.manage_roles:
+        if (len(args) != 1):
+            await ctx.send('Ta komenda wymaga jednego argumentu.')
+            return
+        await ctx.send('Co mam napisać:')
+        channel : TextChannel = guild.get_channel(extract_id(args[0]))
 
         def check(message : Message):
             return message.author == ctx.author and message.channel == ctx.channel
