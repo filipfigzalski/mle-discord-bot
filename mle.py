@@ -1,33 +1,32 @@
 import asyncio
-
 import json
+import logging
 
-import discord
 from discord import *
 from discord.ext.commands import Bot, Context, context
 from discord.utils import get
 
 
-print('Starting up bot.')
-
 # loading names and surnames to dictionary
+logging.debug('Loading names.')
 with open('names.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
     names = {lst[i][:-1]: 1 for i in range(0, len(lst))}
-    print('Names loaded.')
 
+logging.debug('Loading surnames.')
 with open('surnames.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines()
     surnames = {lst[i][:-1]: 1 for i in range(0, len(lst))}
-    print('Surnames loaded.')
 
 # loading verified ids to dictionary
+logging.debug('Loading list of verified ids.')
 with open('ids.csv', 'r', encoding='UTF-8') as file:
     lst = file.readlines() 
     ids = {lst[i][:-1]: 1 for i in range(0, len(lst))}
     print('Loaded verified ids.')
 
 # loading config
+logging.debug('Loading configuration file.')
 with open('config.json') as file:
     config = json.load(file)
     print('Loaded config.')
@@ -35,7 +34,6 @@ with open('config.json') as file:
 
 # defining bot intents
 intents = Intents.all()
-
 
 # creating bot
 client = Bot(command_prefix= config['prefix'], intents=intents)
@@ -58,10 +56,12 @@ select_role_message : Message
 lol_emoji : Emoji
 cs_emoji : Emoji
 
+# exception for send_question function
 class MemberLeft(Exception):
     pass
 
 async def load_config():
+    logging.debug('Loading variables.')
     # importing globals
     global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
 
@@ -79,12 +79,12 @@ async def load_config():
     csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
 
     # messages
-    regulamin_message  = await regulamin_channel.fetch_message(config['id']['messages']['regulamin'])
-    select_role_message  = await select_role_channel.fetch_message(config['id']['messages']['select_role'])
+    regulamin_message  = await regulamin_channel.get_message(config['id']['messages']['regulamin'])
+    select_role_message  = await select_role_channel.get_message(config['id']['messages']['select_role'])
 
     # emotes
-    lol_emoji = await guild.fetch_emoji(config['id']['emojis']['lol'])
-    cs_emoji = await guild.fetch_emoji(config['id']['emojis']['cs'])
+    lol_emoji = await guild.get_emoji(config['id']['emojis']['lol'])
+    cs_emoji = await guild.get_emoji(config['id']['emojis']['cs'])
 
 
 async def write_ids():
@@ -95,17 +95,17 @@ async def write_ids():
             line += '\n'
             lines.append(line)
         file.writelines(lines)
-        print('Ids written succesfully.')
+        logging.debug('Ids written succesfully.')
 
 async def _verify(member : Member) -> bool:
-    print(member.display_name + ' started verification process.')
+    logging.info(member.display_name + ' started verification process.')
     try:
         name = await send_question(member, 'Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
         surname = await send_question(member, 'Podaj swoje nazwisko:')
         city = await send_question(member, 'W jakim mieście chodzisz do szkoły:')
         school = await send_question(member, 'Do jakiej szkoły chodzisz:')
     except MemberLeft:
-        print(member.display_name + ' left during verification.')
+        logging.info(member.display_name + ' left during verification.')
         return False
 
     message = await member.send('Czy dane się zgadzają?\n - Imię: ' + name + '\n - Nazwisko: ' + surname + '\n - Miasto: ' + city + '\n - Szkoła średnia: ' + school)
@@ -121,8 +121,9 @@ async def _verify(member : Member) -> bool:
             reaction, user = await client.wait_for('reaction_add', check=check_reaction, timeout=1)
             break
         except asyncio.TimeoutError:
+            # check if member left during verification
             if not str(member.id) in ids:
-                print(member.display_name + ' left during verification.')
+                logging.info(member.display_name + ' left during verification.')
                 return False
 
     if str(reaction.emoji) == '👍':
@@ -140,6 +141,8 @@ async def _verify(member : Member) -> bool:
 
             # sending dm
             await member.send('Dziękujemy za weryfikację :3')
+            logging.info(member.display_name + ' ended verification.')
+            return True
 
         else:
             # adding reactions for easy veryfying
@@ -148,13 +151,12 @@ async def _verify(member : Member) -> bool:
 
             # sending dm
             await member.send('Hmm...\nDane które podałeś są podejrzane dla naszego bota.\nPoczekaj proszę na weryfikację przez naszych modów.')
-            
+            return False
+
     elif str(reaction.emoji) == '👎':
         # restart verification process
-        await _verify(member)
-    
-    print(member.display_name + ' ended verification.')
-    return True
+        return await _verify(member)
+
 
 async def send_question(member : Member, question : str) -> str:
     # sending message
@@ -175,6 +177,7 @@ async def send_question(member : Member, question : str) -> str:
 
 
 def extract_id(id : str) -> int:
+    # removes any non-digit characters from string and converts to integer
     return int(''.join(c for c in id if c.isdigit()))
 
 @client.event
@@ -186,17 +189,15 @@ async def on_ready():
 
     # loading all variables
     await load_config()
-
-    # console message
-    print('Bot ready.')
+    logging.info('Bot ready.')
 
 
 @client.event
 async def on_raw_reaction_add(payload : RawReactionActionEvent):
     # reactions on verification channel
     if payload.channel_id == verification_channel.id and payload.user_id != client.user.id and str(payload.emoji) in ['🚫', '✅', '❌']:
-        # fetching message
-        message : Message = await verification_channel.fetch_message(payload.message_id)
+        # loading message
+        message : Message = await verification_channel.get_message(payload.message_id)
         
         # extracting member id from reacted message
         member_id = extract_id(message.content.split(' ', 1)[0])
@@ -206,10 +207,12 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
             # removing role and nickname
             await member.remove_roles(verified_role)
             await member.edit(nick='')
+            logging.info('Undone verification for ' + member.display_name)
             await verification_channel.send('🚫 **Cofnięto weryfikacje dla** ' + member.mention)
         elif str(payload.emoji) == '✅':
             await member.add_roles(verified_role)
             
+            logging.info('Verification accepted ' + member.display_name)
             # sending notification to mods with reaction
             content = member.mention + ' został zweryfikowany!'
             notification : Message = await verification_channel.send(content)
@@ -232,10 +235,9 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
             ids[str(member.id)] = 1
             await write_ids()
             # begin verification process
-            if await _verify(member):
-                print(member.display_name + ' ended verification process.')
+            await _verify(member)
 
-    # check if reaction is on specified message
+    # check if reaction is on "select role" message
     elif payload.message_id == select_role_message.id:
         member : Member = guild.get_member(payload.user_id)
         # check if emoji is valid
@@ -243,11 +245,11 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
             if payload.emoji == cs_emoji:
                 # add role
                 await member.add_roles(csgo_role)
-                print(member.display_name + ' selected cs_go role.')
+                logging.info(member.display_name + ' selected cs_go role.')
             elif payload.emoji == lol_emoji:
                 # add role
                 await member.add_roles(lol_role)
-                print(member.display_name + ' selected lol role.')
+                logging.info(member.display_name + ' selected lol role.')
         else:
             # remove spam reactions
             await select_role_message.remove_reaction(payload.emoji, member)
@@ -263,45 +265,51 @@ async def on_raw_reaction_remove(payload : RawReactionActionEvent):
                 if payload.emoji == cs_emoji:
                     # add selected role
                     await member.remove_roles(csgo_role)
-                    print(member.display_name + ' removed cs_go role.')
+                    logging.info(member.display_name + ' removed cs_go role.')
                 elif payload.emoji == lol_emoji:
                     # add selected role
                     await member.remove_roles(lol_role)
-                    print(member.display_name + ' removed lol role.')
+                    logging.info(member.display_name + ' removed lol role.')
 
 
 @client.event
 async def on_member_remove(member : Member):
-    print(member.display_name + ' left server.')
+    logging.info(member.display_name + ' left server.')
     # update ids
     ids.pop(str(member.id))
     await write_ids()
 
 @client.command()
 async def verify(ctx : Context, mention):
-    author = await guild.fetch_member(ctx.author.id)
+    author = await guild.get_member(ctx.author.id)
     # check if author has permissions
     if author.guild_permissions.manage_roles:
         member_id = extract_id(mention)
-        member : Member = await guild.fetch_member(member_id)
+        member : Member = await guild.fet_member(member_id)
         await _verify(member)
+        logging.info(ctx.author.display_name + ' stared verification process for ' + member.display_name)
     else:
         await ctx.send('You don\'t have permission to do this!')
+        logging.info(ctx.author.display_name + ' tried to use verify command without permission.')
 
 @client.command()
 async def say(ctx : Context, arg : str):
     author : Member = guild.get_member(ctx.author.id)
     if author.guild_permissions.manage_roles:
-        await ctx.message.add_reaction('👂')
+        await ctx.send('Co mam napisać:.')
         channel : TextChannel = guild.get_channel(extract_id(arg))
 
         def check(message : Message):
             return message.author == ctx.author and message.channel == ctx.channel
-
-        message : Message = await client.wait_for('message', check=check)
-        await channel.send(message.content)
-        await message.add_reaction('👌')
+        try:
+            message : Message = await client.wait_for('message', check=check, timeout=900)
+            await channel.send(message.content)
+            await message.add_reaction('👌')
+            logging.info(ctx.author.display_name + ' sent message using say command.')
+        except asyncio.TimeoutError:
+            await ctx.send('Czas upłynął.')
     else:
         await ctx.send('You don\'t have permission to do this!')
+        logging.info(ctx.author.display_name + ' tried to use say command without permission.')
 
 client.run(config['token'])
