@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from typing import Text, List
 
 from discord import *
 from discord.ext.commands import Bot, Context, context
@@ -54,6 +55,7 @@ regulamin_channel : TextChannel
 verified_role : Role
 lol_role : Role
 csgo_role : Role
+permitted_roles : List[Role] = []
 
 regulamin_message : Message
 select_role_message : Message
@@ -66,6 +68,7 @@ class MemberLeft(Exception):
     pass
 
 async def load_config():
+    """Loads configuration file to variables."""
     logging.debug('Loading variables.')
     # importing globals
     global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
@@ -82,6 +85,8 @@ async def load_config():
     verified_role  = get(guild.roles, id=config['id']['roles']['verified'])
     lol_role  = get(guild.roles, id=config['id']['roles']['lol'])
     csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
+    for role in config['id']['roles']['permitted']:
+        permitted_roles.append(get(guild.roles, id=role))
 
     # messages
     regulamin_message  = await regulamin_channel.fetch_message(config['id']['messages']['regulamin'])
@@ -93,7 +98,7 @@ async def load_config():
 
 
 async def write_ids():
-    # saves ids to file
+    """saves ids to file"""
     with open('ids.csv', 'w') as file:
         lines = []
         for line in list(ids.keys()):
@@ -103,6 +108,7 @@ async def write_ids():
         logging.debug('Ids written succesfully.')
 
 async def _verify(member : Member) -> bool:
+    """starts verification process of passed member"""
     logging.info(member.display_name + ' started verification process.')
     try:
         name = await send_question(member, 'Witaj na MLEsports!\nRozpoczniemy teraz weryfikację\nPodaj swoję imię:')
@@ -183,8 +189,12 @@ async def send_question(member : Member, question : str) -> str:
 
 
 def extract_id(id : str) -> int:
-    # removes any non-digit characters from string and converts to integer
-    return int(''.join(c for c in id if c.isdigit()))
+    """removes any non-digit characters from string and converts it to integer\n
+    f.e. <@123123123> -> 123123123"""
+    try:
+        return int(''.join(c for c in id if c.isdigit()))
+    except ValueError:
+        return None
 
 @client.event
 async def on_ready():
@@ -288,8 +298,12 @@ async def on_member_remove(member : Member):
 
 @client.command()
 async def verify(ctx : Context, *args):
+    if isinstance(ctx.channel, DMChannel):
+        await ctx.send('Ta komenda działa tylko na serwerze.')
+        logging.info(ctx.author.display_name + ' tried to use verify command in DMs.')
+        return
     # check if author has permissions
-    if ctx.author.guild_permissions.manage_roles:
+    if any(x in permitted_roles for x in ctx.author.roles):
         if (len(args) != 1):
             await ctx.send('Ta komenda wymaga jednego argumentu.')
             return
@@ -297,29 +311,45 @@ async def verify(ctx : Context, *args):
         await _verify(member)
         logging.info(ctx.author.display_name + ' stared verification process for ' + member.display_name)
     else:
-        await ctx.send('You don\'t have permission to do this!')
-        logging.info(ctx.author.display_name + ' tried to use verify command without permission.')
+        await ctx.send('Nie masz odpowiedniej roli, żeby to zrobić.')
+        logging.info(ctx.author.display_name + ' tried to use verify command without right role.')
 
 @client.command()
 async def say(ctx : Context, *args : str):
-    if ctx.author.guild_permissions.manage_roles:
+    if isinstance(ctx.channel, DMChannel):
+        await ctx.send('Ta komenda działa tylko na serwerze.')
+        logging.info(ctx.author.display_name + ' tried to use say command in DMs.')
+        return
+    if any(x in permitted_roles for x in ctx.author.roles):
+        # check if author has on of permitted roles
         if (len(args) != 1):
+            # check if exactly one parameter was passed
+            logging.info(ctx.author.display_name + ' passed wrong amount of arguments to say command.')
             await ctx.send('Ta komenda wymaga jednego argumentu.')
             return
-        await ctx.send('Co mam napisać:')
         channel : TextChannel = guild.get_channel(extract_id(args[0]))
-
+        if channel is None:
+            # check if getting channel was succesfull
+            logging.info(ctx.author.display_name + ' passed wrong channel to say command.')
+            await ctx.send('Podałeś niepoprawny kanał.')
+            return
+        await ctx.send('Co mam napisać na kanale ' + channel.mention + ':\n(Napisz **"ANULUJ"** aby anulować komendę)')
         def check(message : Message):
             return message.author == ctx.author and message.channel == ctx.channel
         try:
+            # wait for message (max 15 minutes)
             message : Message = await client.wait_for('message', check=check, timeout=900)
-            await channel.send(message.content)
+            # add reaction
             await message.add_reaction('👌')
+            if message.content == 'ANULUJ':
+                return
+            # send exact copy of passed message
             logging.info(ctx.author.display_name + ' sent message using say command.')
+            await channel.send(message.content)
         except asyncio.TimeoutError:
             await ctx.send('Czas upłynął.')
     else:
-        await ctx.send('You don\'t have permission to do this!')
-        logging.info(ctx.author.display_name + ' tried to use say command without permission.')
+        await ctx.send('Nie masz odpowiedniej roli, żeby to zrobić.')
+        logging.info(ctx.author.display_name + ' tried to use say command without right role.')
 
 client.run(config['token'])
