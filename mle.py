@@ -51,6 +51,7 @@ guild : Guild
 verification_channel : TextChannel
 select_role_channel : TextChannel
 regulamin_channel : TextChannel
+deleted_channel : TextChannel
 
 verified_role : Role
 lol_role : Role
@@ -71,7 +72,7 @@ async def load_config():
     """Loads configuration file to variables."""
     logging.debug('Loading variables.')
     # importing globals
-    global guild, verification_channel, select_role_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
+    global guild, verification_channel, select_role_channel, deleted_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
 
     # guild
     guild = client.get_guild(config['id']['guild'])
@@ -80,6 +81,7 @@ async def load_config():
     verification_channel = client.get_channel(config['id']['channels']['verification'])
     select_role_channel = client.get_channel(config['id']['channels']['select_role'])
     regulamin_channel = client.get_channel(config['id']['channels']['regulamin'])
+    deleted_channel = client.get_channel(config['id']['channels']['deleted'])
 
     # roles
     verified_role  = get(guild.roles, id=config['id']['roles']['verified'])
@@ -295,6 +297,13 @@ async def on_member_remove(member : Member):
     # update ids
     ids.pop(str(member.id))
     await write_ids()
+
+@client.event
+async def on_raw_message_delete(payload : RawMessageDeleteEvent):
+    
+    content = payload.cached_message.author.mention + ' ' + payload.cached_message.channel.mention + '\n'
+    content += payload.cached_message.content
+    await deleted_channel.send(content)
 
 @client.command()
 async def verify(ctx : Context, *args):
