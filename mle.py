@@ -56,6 +56,7 @@ deleted_channel : TextChannel
 verified_role : Role
 lol_role : Role
 csgo_role : Role
+amongus_role : Role
 permitted_roles : List[Role] = []
 
 regulamin_message : Message
@@ -63,6 +64,7 @@ select_role_message : Message
 
 lol_emoji : Emoji
 cs_emoji : Emoji
+amongus_emoji : Emoji
 
 # exception for send_question function
 class MemberLeft(Exception):
@@ -72,7 +74,7 @@ async def load_config():
     """Loads configuration file to variables."""
     logging.debug('Loading variables.')
     # importing globals
-    global guild, verification_channel, select_role_channel, deleted_channel, regulamin_message, verified_role, lol_role, csgo_role, regulamin_message, select_role_message, lol_emoji, cs_emoji
+    global guild, verification_channel, select_role_channel, deleted_channel, regulamin_message, verified_role, lol_role, csgo_role, amongus_role, regulamin_message, select_role_message, lol_emoji, cs_emoji, amongus_emoji
 
     # guild
     guild = client.get_guild(config['id']['guild'])
@@ -87,6 +89,7 @@ async def load_config():
     verified_role  = get(guild.roles, id=config['id']['roles']['verified'])
     lol_role  = get(guild.roles, id=config['id']['roles']['lol'])
     csgo_role  = get(guild.roles, id=config['id']['roles']['csgo'])
+    amongus_role = get(guild.roles, id=config['id']['roles']['amongus'])
     for role in config['id']['roles']['permitted']:
         permitted_roles.append(get(guild.roles, id=role))
 
@@ -97,6 +100,7 @@ async def load_config():
     # emotes
     lol_emoji = await guild.fetch_emoji(config['id']['emojis']['lol'])
     cs_emoji = await guild.fetch_emoji(config['id']['emojis']['cs'])
+    amongus_emoji = await guild.fetch_emoji(config['id']['emojis']['amongus'])
 
 
 async def write_ids():
@@ -260,7 +264,7 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
     elif payload.message_id == select_role_message.id:
         member : Member = guild.get_member(payload.user_id)
         # check if emoji is valid
-        if payload.emoji in [cs_emoji, lol_emoji]:
+        if payload.emoji in [cs_emoji, lol_emoji, amongus_emoji]:
             if payload.emoji == cs_emoji:
                 # add role
                 await member.add_roles(csgo_role)
@@ -269,6 +273,10 @@ async def on_raw_reaction_add(payload : RawReactionActionEvent):
                 # add role
                 await member.add_roles(lol_role)
                 logging.info(member.display_name + ' selected lol role.')
+            elif payload.emoji == amongus_emoji:
+                # add role
+                await member.add_roles(amongus_role)
+                logging.info(member.display_name + ' selected amongus role.')
         else:
             # remove spam reactions
             await select_role_message.remove_reaction(payload.emoji, member)
@@ -280,7 +288,7 @@ async def on_raw_reaction_remove(payload : RawReactionActionEvent):
     if payload.message_id == select_role_message.id:
             member : Member = guild.get_member(payload.user_id)
             # check if emoji is valid
-            if payload.emoji in [cs_emoji, lol_emoji]:
+            if payload.emoji in [cs_emoji, lol_emoji, amongus_emoji]:
                 if payload.emoji == cs_emoji:
                     # add selected role
                     await member.remove_roles(csgo_role)
@@ -289,6 +297,11 @@ async def on_raw_reaction_remove(payload : RawReactionActionEvent):
                     # add selected role
                     await member.remove_roles(lol_role)
                     logging.info(member.display_name + ' removed lol role.')
+                elif payload.emoji == amongus_emoji:
+                    # add selected role
+                    await member.remove_roles(amongus_role)
+                    logging.info(member.display_name + ' removed amongus role.')
+                
 
 
 @client.event
