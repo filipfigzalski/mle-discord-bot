@@ -375,3 +375,5 @@ async def say(ctx : Context, *args : str):
         logging.info(ctx.author.display_name + ' tried to use say command without right role.')
 
 client.run(config['token'])
+
+# test
