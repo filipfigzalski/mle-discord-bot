@@ -1,4 +1,5 @@
 env/
+venv/
 config.json
 ids.csv
 *.log
